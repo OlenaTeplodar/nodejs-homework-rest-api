@@ -1,4 +1,4 @@
-// const { addSchema } = require('../helpers/validationSchema');
+const {HttpError} = require('../helpers')
 
 const validateBody = (schema) => {
   const func = async (req, res, next) => {

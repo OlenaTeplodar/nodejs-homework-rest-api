@@ -1,15 +1,24 @@
-const app = require('./app');
-const mongoose = require('mongoose');
-const { error } = require('./helpers/validationSchema');
+const app = require("./app");
+const mongoose = require("mongoose");
+require("colors");
 
-const DB_HOST =
-  "mongodb+srv://lenagolubenkova:OZXDMmcBreXfvmPA@cluster0.6gisu5q.mongodb.net/contacts-base?retryWrites=true&w=majority";
+const { DB_HOST, PORT = 3000 } = process.env;
 
+app.listen(PORT, () => {
+  console.log(`Server is running on ${PORT}`.green.italic.bold);
+});
 
-mongoose.connect(DB_HOST).then(() =>
-  app.listen(3000))
-  .catch(error => console.log(error.message));
+const connectDB = async () => {
+  try {
+    const db = await mongoose.connect(DB_HOST);
+    console.log(
+      `Database connection successful. DB_NAME: ${db.connection.name}. DB_HOST: ${db.connection.host}. DB_PORT: ${db.connection.port}`
+        .green.italic.bold
+    );
+  } catch (error) {
+    console.log(error.message.red.italic.bold);
+    process.exit(1);
+  }
+};
 
-  // () => {
-  //   console.log("Server running. Use our API on port: 3000");
-  // };
+connectDB();
