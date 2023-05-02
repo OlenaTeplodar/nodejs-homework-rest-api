@@ -1,79 +1,84 @@
-const fs = require("fs/promises");
-const path = require("path");
-const { nanoid } = require("nanoid");
+const { Schema, model } = require("mongoose");
+const Joi = require("joi");
 
-const contactsPath = path.join(__dirname, "contacts.json");
+const { handleMongooseError } = require("../utils");
 
-const listContacts = async () => {
-  try {
-    const data = await fs.readFile(contactsPath, "utf-8");
-    return JSON.parse(data);
-  } catch (error) {
-    console.log(error.message);
-  }
+const addSchema = Joi.object({
+  name: Joi.string()
+    .regex(/^[A-Za-z ]+$/)
+    .min(2)
+    .max(30)
+    .required()
+    .messages({
+      "any.required": `"name" is required`,
+      "string.empty": `"name" cannot be empty`,
+    }),
+  email: Joi.string()
+    .email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } })
+    .required()
+    .messages({
+      "any.required": `"email" is required`,
+      "string.empty": `"email" cannot be empty`,
+    }),
+  phone: Joi.string()
+    .pattern(/\(?([0-9]{3})\)?([ .-]?)([0-9]{3})\2([0-9]{4})/)
+    .required()
+    .messages({
+      "any.required": `"phone" is required`,
+      "string.empty": `"phone" cannot be empty`,
+    }),
+  favorite: Joi.boolean(),
+});
+
+const statusSchema = Joi.object({
+  favorite: Joi.bool()
+    .valid(true, false)
+    .required("missing field favorite")
+    .messages({ "any.required": "missing field favorite" }),
+});
+
+const contactSchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Set name for contact"],
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      validate: {
+        validator: function (v) {
+          return /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
+        },
+        message: "Please enter a valid email",
+      },
+    },
+    phone: {
+      type: String,
+      validate: {
+        validator: function (v) {
+          return /\(?([0-9]{3})\)?([ .-]?)([0-9]{3})\2([0-9]{4})/.test(v);
+        },
+        message: "Please enter a valid phone",
+      },
+      required: [true, "Set phone for contact"],
+    },
+    favorite: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { versionKey: false, timestamps: true }
+);
+
+contactSchema.post("save", handleMongooseError);
+
+const schemas = {
+  addSchema,
+  statusSchema,
 };
 
-const getContactById = async (id) => {
-  try {
-    const contacts = await listContacts();
-    const result = contacts.find((item) => item.id === id);
-    return result || null;
-  } catch (error) {
-    console.log(error.message);
-  }
-};
+const Contact = model("contact", contactSchema);
 
-const removeContact = async (id) => {
-  try {
-    const contacts = await listContacts();
-    const index = contacts.findIndex((item) => item.id === id);
-    if (index === -1) {
-      return null;
-    }
-    const [result] = contacts.splice(index, 1);
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-    return result;
-  } catch (error) {
-    console.log(error.message);
-  }
-};
-
-const addContact = async ({ name, email, phone }) => {
-  try {
-    const contacts = await listContacts();
-    const newContact = {
-      id: nanoid(),
-      name,
-      email,
-      phone,
-    };
-    contacts.push(newContact);
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-    return newContact;
-  } catch (error) {
-    console.log(error.message);
-  }
-};
-
-const updateContact = async (id, body) => {
-  try {
-    const contacts = await listContacts();
-    const index = contacts.findIndex((item) => item.id === id);
-    if (index === -1) {
-      return null;
-    }
-    contacts[index] = { id, ...body };
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-    return contacts[index];
-  } catch (error) {
-    console.log(error.message);
-  }
-};
-
-module.exports = {
-  listContacts,
-  getContactById,
-  removeContact,
-  addContact,
-  updateContact,
-};
+module.exports = { Contact, schemas };
