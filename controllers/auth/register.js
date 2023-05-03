@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const gravatar = require("gravatar");
 
 const { HttpError } = require("../../helpers");
 const { User } = require("../../models");
@@ -12,8 +13,13 @@ const register = async (req, res) => {
     throw HttpError(409, "Email already in use");
   }
   const hashPassword = await bcrypt.hash(password, 10);
+  const avatarURL = gravatar.url(email);
 
-  const result = await User.create({ ...req.body, password: hashPassword });
+  const result = await User.create({
+    ...req.body,
+    password: hashPassword,
+    avatarURL,
+  });
   if (!result) {
     res.status(400);
     throw new Error("Unable to save in db");
